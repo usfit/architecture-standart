@@ -1,0 +1,59 @@
+﻿@startuml
+title Передача депозитных ставок в кол-центры - диаграмма контейнеров
+
+top to bottom direction
+skinparam linetype polyline
+skinparam nodesep 80
+skinparam ranksep 100
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(client, "Клиент", "Уточняет ставки по депозитам")
+
+System_Boundary(call_system, "Система кол-центра банка") {
+  Container(call, "Приложение кол-центра", "React / Java Spring Boot", "Обновляет каталог из Kafka и показывает ставки операторам")
+  Container(balancer, "Маршрутизатор звонков", "", "Перенаправляет звонки партнеру при высокой нагрузке")
+  ContainerDb(call_db, "БД системы кол-центра банка", "PostgreSQL")
+}
+
+System_Ext(partner_call, "Система партнерского кол-центра", "Принимает перенаправленные звонки и предоставляет операторам файл с публичными ставками")
+System_Ext(partner_mailbox, "Почтовый ящик партнера", "Получает письма с файлами публичных ставок")
+Person(partner_call_manager, "Сотрудник партнерского кол-центра")
+
+Boundary(personal, "Персонал банка") {
+  Person(call_manager, "Менеджер кол-центра")
+  Person(credit_manager, "Сотрудник кредитного бэк-офиса")
+}
+
+System(mail_gateway, "Почтовый шлюз банка", "Доставляет письма партнеру")
+
+System_Boundary(abs, "АБС") {
+  Container(delphi, "Десктопный клиент", "Delphi")
+  Container(abs_integration, "Интеграционный сервис АБС", "Java / Spring Boot", "Публикует публичный каталог и ставки в Kafka и формирует Excel-файл для партнера")
+  ContainerDb(oracle, "База данных АБС", "Oracle", "Хранит данные и выполняет банковскую логику в PL/SQL")
+}
+
+ContainerQueue(kafka, "Топик публичных ставок", "Kafka")
+
+Rel(client, balancer, "Звонит для консультации", "Телефон")
+Rel(balancer, call, "Пропускает звонок в кол-центр банка, если нагрузка небольшая")
+Rel(balancer, partner_call, "Переводит звонок в кол-центр партнера при высокой загруженности")
+
+Rel(credit_manager, delphi, "Обновляет публичные ставки по депозитам")
+Rel(delphi, oracle, "Сохраняет новую версию ставок", "PL/SQL")
+Rel(abs_integration, oracle, "Читает опубликованный публичный каталог и ставки", "JDBC")
+Rel(abs_integration, kafka, "Публикует новую версию публичного каталога и ставок при каждом обновлении", "Kafka")
+Rel(abs_integration, mail_gateway, "Передает письмо с Excel-файлом публичных ставок", "SMTP с TLS")
+Rel(mail_gateway, partner_mailbox, "Доставляет письмо с вложением в почтовый ящик партнера", "SMTP с TLS")
+Rel(partner_call_manager, partner_mailbox, "Получает файл и проверяет его версию")
+Rel(partner_call_manager, partner_call, "Обновляет файл и просматривает актуальные ставки")
+
+Rel(call, kafka, "Читает обновления публичного каталога и ставок", "Kafka")
+Rel(call_manager, call, "Просматривает актуальные ставки")
+Rel(call, call_db, "Проверяет версию, сохраняет и читает публичный каталог и ставки", "SQL")
+
+Rel(call_manager, client, "Консультация по актуальным ставкам", "Телефон")
+Rel(partner_call_manager, client, "Консультация по актуальным ставкам", "Телефон")
+
+
+@enduml

@@ -1,0 +1,34 @@
+﻿@startuml
+
+title Передача депозитных ставок в кол-центры - диаграмма контекста
+
+top to bottom direction
+skinparam linetype polyline
+skinparam nodesep 80
+skinparam ranksep 100
+
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(client, "Клиент", "Уточняет ставки по депозитам")
+Person(call_manager, "Сотрудник кол-центра банка")
+Person(partner_call_manager, "Сотрудник партнерского кол-центра")
+
+System(abs, "АБС", "Хранит актуальные ставки и публикует публичный каталог депозитов")
+System(call, "Система кол-центра банка", "Прием звонков и консультирование по актуальным ставкам")
+System(mail_gateway, "Почтовый шлюз банка", "Почтовый шлюз")
+System_Ext(partner_call, "Система партнерского кол-центра", "Принимает звонки и предоставляет операторам файл со ставками")
+System_Ext(partner_mailbox, "Почтовый ящик партнера", "Принимает файлы с публичными ставками банка")
+
+Rel(client, call, "Звонит для консультации", "Телефон")
+Rel(call, partner_call, "Перенаправляет звонок на партнера при высокой загруженности")
+Rel(abs, call, "Передает новую версию публичного каталога и ставок при каждом обновлении", "Kafka")
+Rel(abs, mail_gateway, "После публикации ставок передает письмо с Excel-файлом", "SMTP с TLS")
+Rel(mail_gateway, partner_mailbox, "Доставляет письмо с файлом публичных ставок", "SMTP с TLS")
+Rel(partner_call_manager, partner_mailbox, "Получает файл и проверяет его версию")
+Rel(partner_call_manager, partner_call, "Обновляет файл и просматривает актуальные ставки")
+Rel(call_manager, call, "Просматривает актуальную информацию по ставкам")
+
+Rel(call_manager, client, "Консультация по актуальным ставкам", "Телефон")
+Rel(partner_call_manager, client, "Консультация по актуальным ставкам", "Телефон")
+
+@enduml
