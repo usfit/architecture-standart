@@ -1,0 +1,64 @@
+@startuml
+title Bank Standart Container C4 Diagram
+
+top to bottom direction
+skinparam linetype polyline
+skinparam nodesep 80
+skinparam ranksep 100
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(client, "Client", "Клиент банка, открытие депозита")
+
+System(site, "Site", "Сайт банка")
+System(call, "Call Center System", "Обзвон клиентов, обработка заявок")
+System_Ext(sms_gateway, "SMS Gateway", "Отправляет СМС клиенту")
+
+Boundary(personal, "Персонал банка") {
+  Person(call_manager, "Менеджер кол-центра")
+  Person(deposit_manager, "Менеджер депозитного бэк-офиса")
+  Person(credit_manager, "Сотрудник кредитного бэк-офиса")
+  Person(branch_officer, "Сотрудник отделения")
+}
+
+Boundary(abs, "АБС") {
+  Container(delphi, "Десктопный клиент", "Delphi")
+  Container(abs_integration, "Интеграционный сервис АБС", "Java / Spring Boot", "Получает из Kafka подтвержденные заявки и передает их в АБС на обработку. Публикует в Kafka каталог депозитов, актуальные и персональные ставки.")
+  ContainerDb(oracle, "База данных АБС", "Oracle", "Хранит данные и выполняет банковскую логику в PL/SQL")
+}
+
+
+Boundary(online_bank, "Online Bank") {
+  Container(ob_web, "Веб-приложение", "ASP.NET MVC / .NET Framework 4.5")
+  Container(ob_deposit, "Депозитный сервис", "Java / Spring Boot", "Принимает заявки, проверяет СМС-код и публикует подтвержденные заявки")
+  ContainerDb(ob_db, "База данных онлайн банка", "MS SQL")
+}
+
+ContainerQueue(kafka, "Очередь сообщений", "Kafka")
+
+Rel(client, site, "Просматривает депозиты и подает заявку", "HTTPS")
+Rel(client, ob_web, "Просматривает депозиты и ставки, подает заявку и подтверждает ее СМС-кодом", "HTTPS")
+Rel(site, abs_integration, "Получает публичный каталог и актуальные ставки", "HTTPS")
+Rel(ob_web, ob_deposit, "Передает заявку и СМС-код на проверку, получает каталог, актуальные и персональные ставки", "HTTPS")
+Rel(ob_deposit, ob_db, "Сохраняет и читает локальную копию каталога и ставок", "SQL")
+
+Rel(ob_deposit, kafka, "Публикует подтвержденные заявки, читает каталог и ставки", "Kafka")
+Rel(abs_integration, kafka, "Читает подтвержденные заявки, публикует каталог и ставки", "Kafka")
+Rel(abs_integration, oracle, "Регистрирует заявки, читает каталог, ставки и события подтверждения ставки и открытия депозита", "PL/SQL")
+Rel(delphi, oracle, "Читает заявки, сохраняет подтвержденные условия, читает и обновляет ставки и оценки риска", "PL/SQL")
+Rel(deposit_manager, delphi, "Обрабатывает заявки, подтверждает условия и согласовывает специальные ставки по оценке риска")
+
+Rel(site, call, "Передает заявку с зашифрованными Ф.И.О. и номером телефона", "HTTPS")
+Rel(call_manager, call, "Просматривает заявку с сайта")
+Rel(call_manager, client, "Прозвон клиента по поводу заявки", "Телефон")
+
+Rel(ob_deposit, sms_gateway, "Запрашивает отправку СМС-кода для подтверждения заявки", "HTTPS")
+Rel(abs_integration, sms_gateway, "Запрашивает отправку СМС при подтверждении ставки и при открытии депозита", "HTTPS")
+
+Rel(sms_gateway, client, "Отправка СМС с кодом подтверждения, оповещения об одобрении ставок и открытии депозита", "SMS")
+
+Rel(credit_manager, delphi, "Обновляет ставки по депозитам и сохраняет оценку кредитного риска")
+
+Rel(branch_officer, client, "Лично проверяет документы нового клиента в отделении")
+
+@enduml

@@ -1,0 +1,41 @@
+@startuml
+
+title Bank Standart Context C4 Diagram
+
+top to bottom direction
+skinparam linetype polyline
+skinparam nodesep 80
+skinparam ranksep 100
+
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(client, "Client", "Клиент банка, открытие депозита")
+Person(call_manager, "Менеджер кол-центра")
+Person(deposit_manager, "Менеджер депозитного бэк-офиса")
+Person(credit_officer, "Сотрудник кредитного бэк-офиса")
+Person(branch_officer, "Сотрудник отделения")
+
+System(abs, "ABS", "Обрабатывает заявки, хранит ставки и ведет учет депозитов")
+System(site, "Site", "Сайт банка")
+System(online_bank, "Online Bank")
+System(call, "Call Center System", "Обзвон клиентов, обработка заявок")
+
+System_Ext(sms_gateway, "SMS Gateway", "Отправляет СМС клиенту")
+
+Rel(client, site, "Просматривает депозиты и подает заявку", "HTTPS")
+Rel(site, abs, "Получение списка доступных депозитов и актуальных ставок", "HTTPS")
+Rel(client, online_bank, "Просматривает депозиты и ставки, подает и подтверждает заявку СМС-кодом", "HTTPS")
+Rel(abs, online_bank, "Асинхронно публикует каталог депозитов, актуальные и персональные ставки")
+Rel(online_bank, abs, "Асинхронно передает подтвержденные заявки для обработки депозитным бэк-офисом")
+Rel(site, call, "Передает заявку с Ф. И. О. и телефоном")
+Rel(online_bank, sms_gateway, "СМС с кодом подтверждения заявки на открытие депозита")
+Rel(abs, sms_gateway, "Передает уведомления о подтверждении ставки и открытии депозита")
+Rel(sms_gateway, client, "Доставляет СМС-код и уведомления о ставке и открытии депозита")
+Rel(call_manager, call, "Просматривает заявки с сайта")
+Rel(call_manager, client, "Звонит по заявке с сайта, при необходимости предлагает особые условия")
+Rel(branch_officer, client, "Лично проверяет документы нового клиента в отделении")
+Rel(deposit_manager, abs, "Обрабатывает заявки и подтверждает условия депозита")
+Rel(deposit_manager, abs, "Запрашивает оценку риска, получает результат и фиксирует специальную ставку")
+Rel(credit_officer, abs, "Обновляет ставки, оценивает кредитный риск и сохраняет результат для согласования")
+
+@enduml

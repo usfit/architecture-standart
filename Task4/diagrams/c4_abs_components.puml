@@ -1,0 +1,25 @@
+﻿@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Передача депозитных ставок - компоненты интеграционного сервиса АБС
+
+left to right direction
+
+ContainerDb(oracle, "База данных АБС", "Oracle", "Хранит опубликованные версии публичного каталога и ставок")
+ContainerQueue(kafka, "Топик публичных ставок", "Kafka", "Передает обновления системе кол-центра банка")
+System(mail_gateway, "Почтовый шлюз банка", "Доставляет письмо с файлом ставок партнеру")
+
+Container_Boundary(abs_integration, "Интеграционный сервис АБС") {
+  Component(rate_reader, "Получение опубликованных ставок", "Java / Spring Boot", "Получает каждую опубликованную версию, включая внеплановые обновления")
+  Component(rate_publisher, "Публикация ставок", "Java / Spring Boot", "Публикует публичный каталог, ставки, номер версии и дату начала действия")
+  Component(rate_export, "Экспорт ставок в Excel", "Java", "Формирует файл с номером версии и датой начала действия")
+  Component(mail_sender, "Отправка файла партнеру", "Java / Spring Boot", "Готовит письмо с вложением и повторяет отправку при временном сбое")
+}
+
+Rel(rate_reader, oracle, "Читает опубликованный публичный каталог и ставки", "JDBC")
+Rel(rate_reader, rate_publisher, "Передает новую версию каталога и ставок")
+Rel(rate_reader, rate_export, "Передает ту же версию для выгрузки")
+Rel(rate_publisher, kafka, "Публикует обновление ставок", "Kafka")
+Rel(rate_export, mail_sender, "Передает Excel-файл")
+Rel(mail_sender, mail_gateway, "Передает письмо с Excel-файлом", "SMTP с TLS")
+@enduml
